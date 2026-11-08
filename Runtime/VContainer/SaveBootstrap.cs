@@ -24,14 +24,10 @@ namespace Services.Saves.VContainer
 
         public async UniTask StartAsync(CancellationToken cancellation)
         {
-            // Preserve existing consumers' forgiving LoadData policy. Applications requiring
-            // strict checkpoint rejection call ICheckpointSaveService.LoadAsync explicitly.
-            TSaveData data = await _saveService.LoadData().AttachExternalCancellation(cancellation);
-            cancellation.ThrowIfCancellationRequested();
+            TSaveData data = await _saveService.LoadData();
 
             foreach (var save in _saves)
             {
-                cancellation.ThrowIfCancellationRequested();
                 save.Load(data.saves);
             }
 

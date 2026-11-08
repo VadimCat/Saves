@@ -1,6 +1,6 @@
 {
   "name": "com.ji2.saves",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "displayName": "Ji2 Saves",
   "description": "Generic JSON save system with VContainer bootstrap support.",
   "unity": "2022.3",
