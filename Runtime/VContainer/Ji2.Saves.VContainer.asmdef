@@ -1,0 +1,19 @@
+{
+    "name": "Ji2.Saves.VContainer",
+    "rootNamespace": "",
+    "references": [
+        "Ji2.Saves",
+        "VContainer",
+        "UniTask",
+        "VContainerExtensions"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

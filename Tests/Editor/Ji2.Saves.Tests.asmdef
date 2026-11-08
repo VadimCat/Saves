@@ -1,0 +1,8 @@
+{
+  "name": "Ji2.Saves.Tests",
+  "references": ["Ji2.Saves", "Ji2.Saves.VContainer", "UniTask", "VContainer"],
+  "includePlatforms": ["Editor"],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll", "Newtonsoft.Json.dll"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}
