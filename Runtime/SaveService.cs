@@ -9,9 +9,14 @@ namespace Services.Saves
 {
     public class SaveService<TSaveData> : ISaveService<TSaveData> where TSaveData : class, ISaveData, new()
     {
+        // Shared so Newtonsoft keeps its per-type contract cache between saves.
+        private static readonly JsonSerializerSettings SerializerSettings = CreateSerializerSettings();
+
         private readonly IReadOnlyList<ISave> _saves;
         private readonly NextFrameScheduler _saveScheduler;
         private readonly SaveSettings _settings;
+        private bool _isWriting;
+        private bool _hasPendingWrite;
 
         private string FilePath => Path.Combine(Application.persistentDataPath, _settings.FileName);
 
@@ -21,7 +26,7 @@ namespace Services.Saves
         {
             _settings = settings;
             _saves = saves;
-            _saveScheduler = new NextFrameScheduler(() => Save(ComposeData()));
+            _saveScheduler = new NextFrameScheduler(RequestWrite);
 
             foreach (var save in _saves)
             {
@@ -51,7 +56,7 @@ namespace Services.Saves
             return data;
         }
 
-        private JsonSerializerSettings GetSerializerSettings()
+        private static JsonSerializerSettings CreateSerializerSettings()
         {
             return new JsonSerializerSettings
             {
@@ -72,18 +77,42 @@ namespace Services.Saves
             };
         }
 
-        private async void Save(TSaveData data)
+        // One write at a time: a request that arrives during a write is
+        // folded into a single follow-up write of the latest data.
+        private void RequestWrite()
         {
+            if (_isWriting)
+            {
+                _hasPendingWrite = true;
+                return;
+            }
+
+            WriteLatestAsync().Forget();
+        }
+
+        private async UniTaskVoid WriteLatestAsync()
+        {
+            _isWriting = true;
             try
             {
-                var settings = GetSerializerSettings();
-                string json = JsonConvert.SerializeObject(data, Formatting.None, settings);
-                await File.WriteAllTextAsync(FilePath, json);
-                Debug.Log($"Data saved successfully. Path: {FilePath}");
+                do
+                {
+                    _hasPendingWrite = false;
+                    try
+                    {
+                        string json = JsonConvert.SerializeObject(ComposeData(), Formatting.None,
+                            SerializerSettings);
+                        await File.WriteAllTextAsync(FilePath, json);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"Error saving data: {e.Message}");
+                    }
+                } while (_hasPendingWrite);
             }
-            catch (Exception e)
+            finally
             {
-                Debug.LogError($"Error saving data: {e.Message}");
+                _isWriting = false;
             }
         }
 
@@ -98,8 +127,7 @@ namespace Services.Saves
                 }
 
                 string json = await File.ReadAllTextAsync(FilePath);
-                var settings = GetSerializerSettings();
-                var data = JsonConvert.DeserializeObject<TSaveData>(json, settings);
+                var data = JsonConvert.DeserializeObject<TSaveData>(json, SerializerSettings);
 
                 Debug.Log("Data loaded successfully.");
                 return data;
@@ -115,6 +143,7 @@ namespace Services.Saves
         {
             try
             {
+                await UniTask.WaitWhile(() => _isWriting);
                 if (File.Exists(FilePath))
                 {
                     File.Delete(FilePath);
@@ -128,8 +157,8 @@ namespace Services.Saves
                     }
                 }
 
-                var settings = GetSerializerSettings();
-                string json = JsonConvert.SerializeObject(ComposeData(), Formatting.None, settings);
+                string json = JsonConvert.SerializeObject(ComposeData(), Formatting.None,
+                    SerializerSettings);
                 await File.WriteAllTextAsync(FilePath, json);
                 Debug.Log($"Save reset successfully. Path: {FilePath}");
             }
